@@ -1,0 +1,71 @@
+USE [wif]
+GO
+/****** Object:  StoredProcedure [dbo].[w_loadinglist]    Script Date: 2/7/2021 1:38:41 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+
+
+ ALTER  procedure [dbo].[w_loadinglist]
+(
+@countryid int, 
+@containerid int = 0
+)
+as
+if @containerid = 0
+begin
+SELECT        s.shippingorderid, CONVERT(nvarchar(20), 10000 + s.shippingorderid, 106) AS txtShipOrder, s.dtorder as OrderDate, ISNULL(theItems.ttlOrderVol, 0) AS OrderVolume, ISNULL(theItems.ttlOrderWt, 0) AS OrderWeight, DTP.countryid, 
+                         s.doortodoorcountryid, s.delmethodid, s.containerid, tcontainers.container, CASE s.delmethodid WHEN 3 THEN s.doortodoorcountryid WHEN 4 THEN DTP.countryid ELSE 0 END AS DestinationCountryID, 
+                         tsailingschedule.dtdeparture, CASE s.delmethodid WHEN 3 THEN DTD_Countries.country WHEN 4 THEN DTP_Countries.country ELSE 'Unknown' END AS DestinationCountry, CONVERT(nvarchar(20), 
+                         s.requesteddeldate, 106) AS ReqDate, tdeliverymethods.delmethod, s.requesteddeldate, ISNULL(NULLIF (ISNULL(NULLIF (Consignors.title, '') + ' ', '') + ISNULL(NULLIF (Consignors.forename, '') + ' ', '') 
+                         + ISNULL(NULLIF (Consignors.middlename, '') + ' ', '') + ISNULL(NULLIF (Consignors.surname, '') + ' ', ''), ''), Consignors.company) AS Consignor, Consignors.mobile1 AS ConsignorTel, 
+                         ISNULL(NULLIF (ISNULL(NULLIF (Consignees.title, '') + ' ', '') + ISNULL(NULLIF (Consignees.forename, '') + ' ', '') + ISNULL(NULLIF (Consignees.middlename, '') + ' ', '') + ISNULL(NULLIF (Consignees.surname, '') 
+                         + ' ', ''), ''), Consignees.company) AS Consignee, Consignees.mobile1 AS ConsigneeTel, consignorid, Consignees.clientid ConsigneeID, s.arrivalportid, DTP.port
+FROM            tsailingschedule RIGHT OUTER JOIN
+                         tcontainers ON tsailingschedule.id = tcontainers.ssid RIGHT OUTER JOIN
+                         tshippingorders AS s LEFT OUTER JOIN
+                         tclients AS Consignees ON s.recipientid = Consignees.clientid LEFT OUTER JOIN
+                         tclients AS Consignors ON s.consignorid = Consignors.clientid LEFT OUTER JOIN
+                         tdeliverymethods ON s.delmethodid = tdeliverymethods.delmethodid LEFT OUTER JOIN
+                         tcountries AS DTD_Countries ON s.doortodoorcountryid = DTD_Countries.countryid LEFT OUTER JOIN
+                         tcountries AS DTP_Countries RIGHT OUTER JOIN
+                         tports AS DTP ON DTP_Countries.countryid = DTP.countryid ON s.arrivalportid = DTP.portid LEFT OUTER JOIN
+                             (SELECT        SUM(ISNULL(qty, 0) * ISNULL(volume, 0)) AS ttlOrderVol, SUM(ISNULL(qty, 0) * ISNULL(weight, 0)) AS ttlOrderWt, orderid AS shOrder
+                               FROM            tshippingorderitems
+                               GROUP BY orderid) AS theItems ON s.shippingorderid = theItems.shOrder ON tcontainers.containerid = s.containerid
+WHERE        (s.methodid IS NOT NULL) AND (s.delmethodid IS NOT NULL) AND (CASE s.delmethodid WHEN 3 THEN s.doortodoorcountryid WHEN 4 THEN DTP.countryid ELSE 0 END = @countryid) AND 
+                         (tsailingschedule.dtdeparture >= GETDATE() OR
+                         tsailingschedule.dtdeparture IS NULL) and s.containerid is null
+end
+else
+begin
+SELECT        s.shippingorderid, CONVERT(nvarchar(20), 10000 + s.shippingorderid, 106) AS txtShipOrder, s.dtorder as OrderDate, ISNULL(theItems.ttlOrderVol, 0) AS OrderVolume, ISNULL(theItems.ttlOrderWt, 0) AS OrderWeight, DTP.countryid, 
+                         s.doortodoorcountryid, s.delmethodid, s.containerid, tcontainers.container, CASE s.delmethodid WHEN 3 THEN s.doortodoorcountryid WHEN 4 THEN DTP.countryid ELSE 0 END AS DestinationCountryID, 
+                         tsailingschedule.dtdeparture, CASE s.delmethodid WHEN 3 THEN DTD_Countries.country WHEN 4 THEN DTP_Countries.country ELSE 'Unknown' END AS DestinationCountry, CONVERT(nvarchar(20), 
+                         s.requesteddeldate, 106) AS ReqDate, tdeliverymethods.delmethod, s.requesteddeldate, ISNULL(NULLIF (ISNULL(NULLIF (Consignors.title, '') + ' ', '') + ISNULL(NULLIF (Consignors.forename, '') + ' ', '') 
+                         + ISNULL(NULLIF (Consignors.middlename, '') + ' ', '') + ISNULL(NULLIF (Consignors.surname, '') + ' ', ''), ''), Consignors.company) AS Consignor, Consignors.mobile1 AS ConsignorTel, 
+                         ISNULL(NULLIF (ISNULL(NULLIF (Consignees.title, '') + ' ', '') + ISNULL(NULLIF (Consignees.forename, '') + ' ', '') + ISNULL(NULLIF (Consignees.middlename, '') + ' ', '') + ISNULL(NULLIF (Consignees.surname, '') 
+                         + ' ', ''), ''), Consignees.company) AS Consignee, Consignees.mobile1 AS ConsigneeTel, consignorid, Consignees.clientid ConsigneeID, s.arrivalportid, DTP.port
+FROM            tsailingschedule RIGHT OUTER JOIN
+                         tcontainers ON tsailingschedule.id = tcontainers.ssid RIGHT OUTER JOIN
+                         tshippingorders AS s LEFT OUTER JOIN
+                         tclients AS Consignees ON s.recipientid = Consignees.clientid LEFT OUTER JOIN
+                         tclients AS Consignors ON s.consignorid = Consignors.clientid LEFT OUTER JOIN
+                         tdeliverymethods ON s.delmethodid = tdeliverymethods.delmethodid LEFT OUTER JOIN
+                         tcountries AS DTD_Countries ON s.doortodoorcountryid = DTD_Countries.countryid LEFT OUTER JOIN
+                         tcountries AS DTP_Countries RIGHT OUTER JOIN
+                         tports AS DTP ON DTP_Countries.countryid = DTP.countryid ON s.arrivalportid = DTP.portid LEFT OUTER JOIN
+                             (SELECT        SUM(ISNULL(qty, 0) * ISNULL(volume, 0)) AS ttlOrderVol, SUM(ISNULL(qty, 0) * ISNULL(weight, 0)) AS ttlOrderWt, orderid AS shOrder
+                               FROM            tshippingorderitems
+                               GROUP BY orderid) AS theItems ON s.shippingorderid = theItems.shOrder ON tcontainers.containerid = s.containerid
+WHERE        (s.methodid IS NOT NULL) AND (s.delmethodid IS NOT NULL) AND (CASE s.delmethodid WHEN 3 THEN s.doortodoorcountryid WHEN 4 THEN DTP.countryid ELSE 0 END = @countryid) AND 
+                         (s.containerid = @containerid) AND (tsailingschedule.dtdeparture >= GETDATE() OR
+                         tsailingschedule.dtdeparture IS NULL) 
+end
+
+
+
+
